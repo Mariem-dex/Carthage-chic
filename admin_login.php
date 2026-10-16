@@ -5,6 +5,7 @@ session_start();
 require_once __DIR__ . '/db.php';
 // Optional protection layer: IP whitelist or secret key
 require_once __DIR__ . '/admin_config.php';
+require_once __DIR__ . '/security.php';
 
 // If IP not allowed and no secret key, deny early
 $remote = $_SERVER['REMOTE_ADDR'] ?? '';
@@ -41,6 +42,7 @@ if (!isset($_SESSION['admin_logged'])) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf_token();
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
         $remember = isset($_POST['remember']);
@@ -66,7 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $upd = $pdo->prepare("UPDATE admins SET remember_token = ?, remember_expires = ? WHERE id = ?");
                         $upd->execute([$token_hash, $expires, $admin['id']]);
                         // Set cookie (httponly)
-                        setcookie('cc_admin_remember', $token, time() + 60*60*24*30, '/', '', false, true);
+                        setcookie('cc_admin_remember', $token, [
+                            'expires' => time() + 60*60*24*30,
+                            'path' => '/',
+                            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                            'httponly' => true,
+                            'samesite' => 'Lax',
+                        ]);
                     } catch (Exception $e) {
                         // ignore remember-me failures
                     }
@@ -101,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form action="admin_login.php" method="POST">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
             <div class="login-form-group">
                 <label for="username" class="login-label">Identifiant</label>
                 <input type="text" id="username" name="username" class="login-input" autocomplete="username" required value="<?= htmlspecialchars($username ?? '') ?>">

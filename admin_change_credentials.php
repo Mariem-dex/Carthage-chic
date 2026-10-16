@@ -13,11 +13,13 @@ if (php_sapi_name() !== 'cli') {
 }
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/security.php';
 
 $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf_token();
     $new_user = trim($_POST['username'] ?? '');
     $new_pass = trim($_POST['password'] ?? '');
     $confirm = trim($_POST['password_confirm'] ?? '');
@@ -87,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="admin_change_credentials.php">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
             <label for="username">Nouvel identifiant</label>
             <input type="text" id="username" name="username" required placeholder="ex: admin">
 
